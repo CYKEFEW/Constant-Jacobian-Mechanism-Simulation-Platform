@@ -1,6 +1,6 @@
 # Constant Jacobian 参数化机构仿真平台
 
-Python 桌面应用，复用网页仿真的 PRRR 三平移机构逻辑。Python / NumPy 负责全部运动学、配重计算和动力学；PySide6 提供参数面板，内嵌离线 WebGL 提供不透明实体、深度遮挡和交互视角。无需启动服务器、联网或安装浏览器。
+面向 PRRR 三平移机构的 Python 参数化建模与仿真桌面应用。Python / NumPy 负责全部运动学、配重计算和动力学；PySide6 提供参数面板，内嵌离线 WebGL 提供不透明实体、深度遮挡和交互视角。无需启动服务器、联网或安装浏览器。
 
 ## 启动
 
@@ -24,7 +24,7 @@ python main.py
 5. 拖动白色末端球，通过 220 N/m 虚拟弹簧施加外力（鼠标力上限 12 N）；开始拖动自动启动仿真，松开撤去鼠标外力，不直接改变末端位置。“仿真控制”可选择随视角、XY、XZ、YZ 施力平面。粉色箭头表示总外力，粉色虚线连接鼠标目标。空白处拖动旋转，滚轮缩放，双击复位。白色虚线表示旋转轴和平移路径，按实体深度遮挡；标注可关闭。
 6. 保存/打开 JSON 设计；导出理想配重报告和轨迹 CSV。CSV 包含时间、位移、速度、滑块位移、电机力、名义静平衡重力残差、动能、势能、总外力和鼠标力。该残差用于设计对比，假定配重绳张紧，不代表松绳时的实际支持力；界面另显示实际绳张力。报告中的质量为 100% 理想值，界面的配重比例影响实际参与仿真的全部九个配重。
 
-`examples/default.json` 复现网页模型；`examples/asymmetric.json` 演示非等长、非对称质量和配重位置。
+`examples/default.json` 提供默认机构参数；`examples/asymmetric.json` 演示非等长、非对称质量和配重位置。
 
 ## 物理模型与适用范围
 
@@ -111,4 +111,4 @@ print(mechanism.balance_report())
 design.save('my_design.json')
 ```
 
-机构参考：Jin et al., *Parallel Force Feedback Device Design With Constant Jacobian Matrix and Net Weight Fully Balanced*, DOI 10.1115/1.4066744。实现延续网页中的简化安装布局，而非论文样机 CAD 复刻。Qt 内嵌视图接口参考 [QWebEngineView 文档](https://doc.qt.io/qt-6/qwebengineview.html)。
+机构参考：Jin et al., *Parallel Force Feedback Device Design With Constant Jacobian Matrix and Net Weight Fully Balanced*, DOI 10.1115/1.4066744。本平台采用简化安装布局，而非论文样机 CAD 复刻。Qt 内嵌视图接口参考 [QWebEngineView 文档](https://doc.qt.io/qt-6/qwebengineview.html)。

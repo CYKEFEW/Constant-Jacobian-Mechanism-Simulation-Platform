@@ -184,7 +184,7 @@ class Window(QMainWindow):
         self.button(layout, '将支链 1 参数复制到支链 2、3', self.copy_leg)
         self.apply_button = self.button(layout, '应用参数并计算配重', self.apply_design)
         self.apply_button.setStyleSheet('background:#126f70;font-weight:bold;padding:12px')
-        self.button(layout, '恢复网页模型默认参数', lambda: self.populate(Design()))
+        self.button(layout, '恢复默认参数', lambda: self.populate(Design()))
         note = QLabel('导轨距离是轴线到末端平台零位中心的垂直距离，三条导轨共用此值。\n总行程是滑块允许的运动范围，不含滑块长度及端部安装余量；实际可达范围还受杆长限制。\n配重位置沿各杆反向延长线定义；杆为均质细杆，配重臂无质量。\n改变杆长不会改变 J，但会改变可装配范围、惯性及所需配重。')
         note.setWordWrap(True); layout.addWidget(note); layout.addStretch()
 

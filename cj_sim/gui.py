@@ -5,7 +5,7 @@ import time
 from dataclasses import asdict, fields
 from pathlib import Path
 import numpy as np
-from PySide6.QtCore import Qt, QTimer, QUrl, QObject, Slot, QPointF
+from PySide6.QtCore import Qt, QTimer, QUrl, QObject, Slot, QPointF, QEvent
 from PySide6.QtGui import QColor, QPainter, QPen, QPolygonF
 from PySide6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QFormLayout, QLabel, QPushButton, QDoubleSpinBox, QComboBox, QCheckBox, QTabWidget,
@@ -51,6 +51,11 @@ class InteractionBridge(QObject):
     def notify(self,text):
         self.window.status.setText(text)
 
+    @Slot()
+    def viewBlur(self):
+        # Chromium focus changes are not necessarily top-level window deactivation.
+        if not self.window.isActiveWindow():self.window.release_pointer_interaction()
+
     @Slot(int,float)
     def frameDone(self,sequence,cost):
         self.window.frame_done(sequence,cost)
@@ -64,36 +69,68 @@ def spin(value, low, high, decimals=3, suffix=''):
 
 
 class Trace(QWidget):
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, *, title='末端位移 / X 青 · Y 橙 · Z 紫', columns=(1,2,3), scale=1000., unit='mm', minimum=5.):
         super().__init__(parent)
         self.samples = []
-        self.setMinimumHeight(135)
-        self.setMaximumHeight(190)
+        self.title=title;self.columns=columns;self.scale=scale;self.unit=unit;self.minimum=minimum
+        self.setMinimumHeight(290)
+
+    def latest_readout(self):
+        labels=('X','Y','Z') if self.unit=='mm' else ('τ₁','τ₂','τ₃')
+        if not self.samples:return '最新点：暂无数据', [f'{label} = — {self.unit}' for label in labels]
+        row=self.samples[-1]
+        # Avoid displaying negative zero after rounding small numerical residuals.
+        def decimal(value):
+            result=f'{value:.2f}'
+            return '0.00' if result=='-0.00' else result
+        return f'最新点：t = {decimal(row[0])} s', [
+            f'{label} = {decimal(row[column]*self.scale)} {self.unit}'
+            for label,column in zip(labels,self.columns)]
 
     def paintEvent(self, event):
         painter = QPainter(self)
         painter.fillRect(self.rect(), QColor('#101e30'))
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         painter.setPen(QColor('#b8cde3'))
-        painter.drawText(14, 22, '位移随仿真时间变化  /  X 青 · Y 橙 · Z 紫')
+        painter.drawText(14, 22, self.title)
+        stamp,readings=self.latest_readout()
+        painter.drawText(14, 43, stamp)
+        for axis,text in enumerate(readings):
+            painter.setPen(QColor(COLORS[axis]))
+            painter.drawText(14, 64+axis*20, text)
+        painter.setPen(QColor('#b8cde3'))
         if len(self.samples) < 2:
-            painter.drawText(14, 65, '开始仿真后显示曲线；暂停时可导出 CSV。')
+            painter.drawText(14, 145, '开始仿真后显示曲线；暂停时可导出 CSV。')
             return
         data = np.array(self.samples[-400:])
-        limit = max(.005, float(np.max(np.abs(data[:, 1:4]))))*1000
-        left, top, width, height = 58, 34, self.width()-80, self.height()-55
+        values=data[:,self.columns]*self.scale
+        limit = max(self.minimum, float(np.max(np.abs(values)))*1.1)
+        left, top, width, height = 66, 124, max(1,self.width()-84), max(1,self.height()-160)
         painter.setPen(QColor('#30465e'))
         painter.drawLine(left, top+height//2, left+width, top+height//2)
         painter.drawText(4, top+10, f'{limit:.1f}')
         painter.drawText(4, top+height, f'-{limit:.1f}')
-        painter.drawText(left+width-120, self.height()-5, f'{data[-1,0]:.2f} s   /   mm')
+        painter.drawText(left, self.height()-10, f'{data[0,0]:.2f} s')
+        painter.drawText(left+width-115, self.height()-10, f'{data[-1,0]:.2f} s / {self.unit}')
+        duration=max(float(data[-1,0]-data[0,0]),1e-12)
         for axis, color in enumerate(COLORS):
             painter.setPen(QPen(QColor(color), 1.8))
-            points=QPolygonF([QPointF(left+width*i/(len(data)-1),top+height/2-row[axis+1]*1000/limit*height/2) for i,row in enumerate(data)])
+            points=QPolygonF([QPointF(left+width*(row[0]-data[0,0])/duration,top+height/2-values[i,axis]/limit*height/2) for i,row in enumerate(data)])
             painter.drawPolyline(points)
+            painter.setBrush(QColor(color))
+            painter.drawEllipse(points[-1],3,3)
 
 
 class Window(QMainWindow):
+    def release_pointer_interaction(self):
+        self.interaction.endDrag()
+        if self.web_ready:self.view.page().runJavaScript('cancelPointerDrag()')
+
+    def event(self,event):
+        if event.type()==QEvent.Type.WindowDeactivate and hasattr(self,'interaction'):
+            self.release_pointer_interaction()
+        return super().event(event)
+
     def __init__(self):
         super().__init__()
         self.setWindowTitle('Constant Jacobian · 参数化机构仿真平台')
@@ -118,7 +155,7 @@ class Window(QMainWindow):
         tools.addStretch(); outer.addLayout(tools)
         split = QSplitter(); outer.addWidget(split, 1)
         self.tabs = QTabWidget(); self.tabs.setMinimumWidth(405); split.addWidget(self.tabs)
-        self.build_design_tab(); self.build_sim_tab(); self.build_result_tab()
+        self.build_design_tab(); self.build_sim_tab(); self.build_result_tab(); self.build_plot_tab()
         right = QWidget(); layout = QVBoxLayout(right); layout.setContentsMargins(0,0,0,0)
         self.view = QWebEngineView(); self.view.setMinimumSize(380, 320)
         self.channel=QWebChannel(self.view.page())
@@ -138,13 +175,37 @@ class Window(QMainWindow):
         opts.addWidget(home); layout.addLayout(opts)
         self.readout = QLabel(); self.readout.setWordWrap(True); self.readout.setMinimumHeight(65)
         layout.addWidget(self.readout)
-        self.trace = Trace(); layout.addWidget(self.trace)
         split.addWidget(right); split.setSizes([445, 950])
         self.status = QLabel('修改参数后点击“应用参数并计算”；默认启用人为回中。')
         self.status.setWordWrap(True); outer.addWidget(self.status)
         self.populate(Design()); self.dirty=False; self.update_results(); self.refresh()
         self.status.setText(f'就绪。默认完整配重、重力开启；人为回中 K={DEFAULT_STIFFNESS:g} N/m，B={DEFAULT_DAMPING:g} N·s/m。')
         self.timer.start()
+        self.plot_timer.start()
+
+    def build_plot_tab(self):
+        layout=self.scroll_tab('仿真绘图')
+        self.plot_page=self.tabs.widget(self.tabs.count()-1)
+        note=QLabel('横轴：仿真时间；显示最近 400 个记录点。\n驱动力为三个滑块的驱动力 τ = Jᵀ(−Kp−Bv)，不是鼠标外力或绳张力。')
+        note.setWordWrap(True);layout.addWidget(note)
+        form=QFormLayout();layout.addLayout(form)
+        self.plot_rate=spin(30,1,60,0,' Hz')
+        form.addRow('绘图刷新率',self.plot_rate)
+        self.trace=Trace();layout.addWidget(self.trace,1)
+        self.force_trace=Trace(title='滑块驱动力 / τ₁ 青 · τ₂ 橙 · τ₃ 紫',columns=(10,11,12),scale=1.,unit='N',minimum=1.)
+        layout.addWidget(self.force_trace,1)
+        self.plot_timer=QTimer(self);self.plot_timer.setTimerType(Qt.TimerType.PreciseTimer)
+        self.plot_timer.setInterval(round(1000/self.plot_rate.value()))
+        self.plot_timer.timeout.connect(self.refresh_plots)
+        self.plot_rate.valueChanged.connect(lambda value:self.plot_timer.setInterval(round(1000/value)))
+        self.tabs.currentChanged.connect(lambda _:self.refresh_plots())
+
+    def refresh_plots(self):
+        # Keep recording at the simulation cadence; repaint only the visible page.
+        if self.tabs.currentWidget() is not self.plot_page:return
+        for trace in (self.trace,self.force_trace):
+            trace.samples=self.sim.history
+            trace.update()
 
     def scroll_tab(self, title):
         pane = QWidget(); layout = QVBoxLayout(pane)
@@ -320,6 +381,7 @@ class Window(QMainWindow):
             state=self.sim.state()
             if record: self.sim.record(state)
             self.render(state=state)
+            if not record:self.refresh_plots()
             now=time.perf_counter()
             if record and now-self._last_readout<.1:return
             self._last_readout=now
@@ -331,7 +393,6 @@ class Window(QMainWindow):
                 f'{"边界限位 · " if self.sim.contact_active else ""}'
                 f'{"松绳 H"+",".join(str(i+1) for i in np.flatnonzero(state["rope_slack"])) if np.any(state["rope_slack"]) else "绳索无松弛"}\n'
                 f'动能 {state["kinetic"]:.5f} J    ·    总质量 {state["total_mass"]:.3f} kg')
-            self.trace.samples=self.sim.history; self.trace.update()
         except ValueError as e: self.status.setText(str(e))
 
     def loaded(self,ok):

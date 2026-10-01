@@ -83,10 +83,16 @@ const EMPTY_POINTS=[];
 window.updateScene=function(data){if(!scene||scene.design_key!==data.design_key){if(renderer)renderer.needsFraming=true;}scene=Object.assign(scene||{workspace:EMPTY_POINTS},data);window.renderStats.received++;scheduleDraw();};
 window.resetCamera=function(){yaw=.68;pitch=.44;zoom=1;if(renderer)renderer.needsFraming=true;scheduleDraw();};
 function pointerPosition(e){const r=canvas.getBoundingClientRect();return[e.clientX-r.left,e.clientY-r.top];}
-window.cancelPointerDrag=function(){pendingMouseTarget=null;drag=null;canvas.style.cursor='grab';};
-function endDrag(){pendingMouseTarget=null;if(drag?.kind==='force'&&bridge)bridge.endDrag();drag=null;canvas.style.cursor='grab';}
+function clearDrag(notify){
+ const previous=drag;pendingMouseTarget=null;drag=null;canvas.style.cursor='grab';
+ if(previous&&canvas.hasPointerCapture(previous.pointerId))canvas.releasePointerCapture(previous.pointerId);
+ if(notify&&previous?.kind==='force'&&bridge)bridge.endDrag();
+}
+window.cancelPointerDrag=function(){clearDrag(false);};
+function endDrag(){clearDrag(true);}
 canvas.addEventListener('pointerdown',e=>{
  if(!scene||!renderer?.center||e.button!==0)return;
+ e.preventDefault(); // Do not start native selection/drag or transfer focus.
  const [x,y]=pointerPosition(e),p=project(scene.p);
  const picked=Math.hypot(x-p.x,y-p.y)<Math.max(16,renderer.extent*.007*1.7*scale+5);
  if(picked&&bridge){
@@ -98,11 +104,17 @@ canvas.addEventListener('pointerdown',e=>{
    drag={kind:'force',x,y,origin:[...scene.p],u,v,A,B,C,D,det,scale};
    bridge.beginDrag(...scene.p);canvas.style.cursor='crosshair';
  }else{drag={kind:'orbit',x,y};canvas.style.cursor='grabbing';}
- if(e.isTrusted)canvas.setPointerCapture(e.pointerId);
+ drag.pointerId=e.pointerId;
+ if(e.isTrusted){try{canvas.setPointerCapture(e.pointerId);}catch(_){endDrag();}}
 });
 canvas.addEventListener('pointermove',e=>{
  const [x,y]=pointerPosition(e);
  if(!drag){if(scene&&renderer?.center){const p=project(scene.p);canvas.style.cursor=Math.hypot(x-p.x,y-p.y)<18?'crosshair':'grab';}return;}
+ if(e.pointerId!==drag.pointerId)return;
+ // Pointer capture deliberately keeps the drag active outside the viewport.
+ // The Python spring force remains capped at 12 N, including outside targets.
+ if(!Number.isFinite(x)||!Number.isFinite(y))return;
+ if(e.isTrusted&&(e.buttons&1)===0){endDrag();return;}
  if(drag.kind==='orbit'){yaw-=(x-drag.x)*.007;pitch=Math.max(-1.45,Math.min(1.45,pitch+(y-drag.y)*.007));drag.x=x;drag.y=y;scheduleDraw();return;}
  const dx=(x-drag.x)/drag.scale,dy=-(y-drag.y)/drag.scale;
  const a=(drag.D*dx-drag.B*dy)/drag.det,b=(drag.A*dy-drag.C*dx)/drag.det;
@@ -110,6 +122,9 @@ canvas.addEventListener('pointermove',e=>{
  pendingMouseTarget=target;scheduleDraw();
 });
 canvas.addEventListener('pointerup',endDrag);canvas.addEventListener('pointercancel',endDrag);canvas.addEventListener('lostpointercapture',endDrag);
-window.addEventListener('blur',endDrag);
+window.addEventListener('pointerup',endDrag);
+window.addEventListener('blur',()=>{if(bridge)bridge.viewBlur();});
+canvas.addEventListener('dragstart',e=>e.preventDefault());
+document.addEventListener('visibilitychange',()=>{if(document.hidden)endDrag();});
 canvas.addEventListener('wheel',e=>{e.preventDefault();zoom=Math.max(.3,Math.min(5,zoom*Math.exp(-e.deltaY*.001)));scheduleDraw();},{passive:false});
 canvas.addEventListener('dblclick',resetCamera);new ResizeObserver(scheduleDraw).observe(canvas);

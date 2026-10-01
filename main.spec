@@ -40,7 +40,7 @@ exe = EXE(
     a.binaries,
     a.datas,
     [],
-    name='main',
+    name='Constant Jacobian机构仿真平台',
     icon=str(project / 'assets' / 'app.ico'),
     debug=False,
     bootloader_ignore_signals=False,

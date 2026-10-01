@@ -1,0 +1,17 @@
+{
+  "schema": 1,
+  "units": "SI",
+  "design": {
+    "alpha": 48,
+    "platform_mass": 0.35,
+    "platform_radius": 0.068,
+    "anchor_distance": 0.105,
+    "travel": 0.0275,
+    "gravity": 9.81,
+    "legs": [
+      {"proximal_length":0.11,"distal_length":0.08,"proximal_mass":0.09,"distal_mass":0.045,"slider_mass":0.04,"proximal_arm":0.06,"distal_arm":0.04},
+      {"proximal_length":0.085,"distal_length":0.105,"proximal_mass":0.04,"distal_mass":0.12,"slider_mass":0.06,"proximal_arm":0.07,"distal_arm":0.055},
+      {"proximal_length":0.13,"distal_length":0.10,"proximal_mass":0.10,"distal_mass":0.08,"slider_mass":0.05,"proximal_arm":0.08,"distal_arm":0.045}
+    ]
+  }
+}

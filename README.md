@@ -13,6 +13,20 @@ python main.py
 
 也可双击 `启动仿真平台.cmd`。需要 Python 3.10 或以上；当前验证环境为 Python 3.13.7、PySide6 6.10.1、NumPy 2.3.3。
 
+## 打包单文件 EXE（Windows）
+
+在项目目录执行：
+
+```powershell
+python -m pip install -r requirements.txt
+python -m pip install "pyinstaller>=6.18,<7" pyinstaller-hooks-contrib
+python -m PyInstaller main.spec
+```
+
+输出为 `dist/main.exe`，采用无控制台窗口的单文件模式，包含三维渲染资源和示例设计。Qt WebEngine 依赖由 PyInstaller 自带钩子收集；禁用 UPX 压缩。单文件运行时会解压依赖到临时目录，因此启动可能稍慢，运行中出现 WebEngine 辅助进程属于正常情况。保存设计或导出结果时请选择持久目录，不要保存在临时解压目录中。打包后请手动检查三维显示、鼠标施力、绘图和文件导出。
+
+配置说明参考 [PyInstaller spec 文件文档](https://pyinstaller.org/en/stable/spec-files.html)。
+
 ## 使用
 
 1. 在“参数建模”设置倾角、平台质量、连接半径、导轨轴线到零位中心距离和导轨总行程。三条支链分别设置近端/远端杆长、杆质量、滑块质量，以及 W2 / W3 反向配重臂长。

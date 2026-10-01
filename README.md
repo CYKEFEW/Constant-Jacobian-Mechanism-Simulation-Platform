@@ -27,6 +27,8 @@ python -m PyInstaller main.spec
 
 配置说明参考 [PyInstaller spec 文件文档](https://pyinstaller.org/en/stable/spec-files.html)。
 
+应用标志采用深蓝底色、青/橙/紫三支链与白色中心节点的抽象几何图形，不是机构装配图。`assets/logo.svg` 是可编辑源文件，`assets/logo.png` 为 512 px 图片，`assets/app.ico` 包含 16、24、32、48、64、128、256 px 七种尺寸。GUI 标题区、窗口图标及 EXE 共用此标志。修改 SVG 后运行 `python tools/build_icon.py` 重新导出，再执行打包命令更新 EXE 图标。
+
 ## 使用
 
 1. 在“参数建模”设置倾角、平台质量、连接半径、导轨轴线到零位中心距离和导轨总行程。三条支链分别设置近端/远端杆长、杆质量、滑块质量，以及 W2 / W3 反向配重臂长。

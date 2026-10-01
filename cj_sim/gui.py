@@ -6,7 +6,7 @@ from dataclasses import asdict, fields
 from pathlib import Path
 import numpy as np
 from PySide6.QtCore import Qt, QTimer, QUrl, QObject, Slot, QPointF, QEvent
-from PySide6.QtGui import QColor, QPainter, QPen, QPolygonF
+from PySide6.QtGui import QColor, QPainter, QPen, QPolygonF, QIcon
 from PySide6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QFormLayout, QLabel, QPushButton, QDoubleSpinBox, QComboBox, QCheckBox, QTabWidget,
     QTableWidget, QTableWidgetItem, QHeaderView, QScrollArea, QSplitter, QFileDialog, QMessageBox)
@@ -134,6 +134,7 @@ class Window(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle('Constant Jacobian · 参数化机构仿真平台')
+        self.setWindowIcon(QIcon(str(ROOT/'assets'/'app.ico')))
         self.resize(1440, 930)
         self.mechanism = Mechanism()
         self.sim = Simulation(self.mechanism)
@@ -148,7 +149,9 @@ class Window(QMainWindow):
         container = QWidget(); outer = QVBoxLayout(container); self.setCentralWidget(container)
         title = QLabel('CONSTANT JACOBIAN   /   参数化设计实验室')
         title.setStyleSheet('font-size:22px;font-weight:600;padding:8px;color:#e7f3ff')
-        outer.addWidget(title)
+        heading=QHBoxLayout()
+        logo=QLabel();logo.setPixmap(self.windowIcon().pixmap(44,44));logo.setFixedSize(52,52)
+        heading.addWidget(logo);heading.addWidget(title,1);outer.addLayout(heading)
         tools = QHBoxLayout()
         for text, callback in [('打开设计', self.open_design), ('保存设计', self.save_design), ('导出配重报告', self.export_report), ('导出仿真 CSV', self.export_csv)]:
             b = QPushButton(text); b.clicked.connect(callback); tools.addWidget(b)
@@ -486,6 +489,7 @@ class Window(QMainWindow):
 
 
 def configure_application(app):
+    app.setWindowIcon(QIcon(str(ROOT/'assets'/'app.ico')))
     app.setStyle('Fusion')
     app.setStyleSheet('''QWidget{background:#101b2b;color:#dbe9f7;font-family:"Microsoft YaHei UI";font-size:12px;}
     QLineEdit,QDoubleSpinBox,QComboBox{background:#192c42;border:1px solid #38516b;border-radius:4px;padding:5px;}
@@ -497,6 +501,9 @@ def configure_application(app):
     
 
 def main():
+    if sys.platform=='win32':
+        import ctypes
+        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID('ConstantJacobian.Simulator')
     app=QApplication(sys.argv)
     configure_application(app)
     window=Window(); window.show()

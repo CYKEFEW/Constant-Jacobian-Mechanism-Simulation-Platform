@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+  <title>Constant Jacobian — three branches, one platform</title>
+  <rect x="8" y="8" width="240" height="240" rx="52" fill="#101e30"/>
+  <path d="M128 45 L201 173 L55 173 Z" fill="none" stroke="#30465e" stroke-width="10" stroke-linejoin="round"/>
+  <g fill="none" stroke-width="18" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M128 45 L155 88 L128 128" stroke="#51d4cc"/>
+    <path d="M201 173 L151 183 L128 128" stroke="#ffba62"/>
+    <path d="M55 173 L77 123 L128 128" stroke="#af98ff"/>
+  </g>
+  <g stroke="#101e30" stroke-width="5">
+    <circle cx="128" cy="45" r="13" fill="#51d4cc"/>
+    <circle cx="201" cy="173" r="13" fill="#ffba62"/>
+    <circle cx="55" cy="173" r="13" fill="#af98ff"/>
+    <circle cx="128" cy="128" r="21" fill="#f3f8ff"/>
+  </g>
+</svg>
